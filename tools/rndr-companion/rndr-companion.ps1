@@ -290,8 +290,14 @@ function Stop-Rndr {
     param($Cfg, [string]$Why)
     $procs = @(Get-RndrProcesses $Cfg)
     if ($procs.Count -eq 0) { return }
-    try { $procs | Stop-Process -Force -ErrorAction Stop } catch { }
-    Write-Log "kill: stopped $($procs.Count) $($Cfg.process_name) process(es) - $Why"
+    foreach ($p in $procs) { try { Stop-Process -Id $p.Id -Force -ErrorAction Stop } catch { } }
+    # Wait for the kills to land: a relaunch right after this must not
+    # "adopt" processes that are still unwinding, and the next tick must
+    # not count them as alive.
+    $deadline = (Get-Date).AddSeconds(10)
+    while ((@(Get-RndrProcesses $Cfg).Count -gt 0) -and ((Get-Date) -lt $deadline)) { Start-Sleep -Milliseconds 250 }
+    $left = @(Get-RndrProcesses $Cfg).Count
+    Write-Log ("kill: stopped {0} {1} process(es) - {2}{3}" -f $procs.Count, $Cfg.process_name, $Why, $(if ($left) { " ($left still running)" } else { '' }))
 }
 
 # -------------------------------------------------------------- DCC gate ---
@@ -526,6 +532,11 @@ try {
                 'Inactive' {
                     if ($rendering) {
                         Set-State 'RenderActive' 'render in progress'
+                    } elseif ($dccPresent) {
+                        # A client we did not launch (left over from a
+                        # previous companion run, or started by hand) must
+                        # not sit on the GPU next to an artist either.
+                        if (Test-RndrRunning $cfg) { Stop-Rndr $cfg "creative app present ($dccName), unmanaged client" }
                     } elseif (($now - $reachableSince).TotalSeconds -lt $cfg.startup_delay_seconds) {
                         # startup settle
                     } elseif ($dccBlocked) {

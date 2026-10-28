@@ -63,7 +63,7 @@ Same as the retired in-process version.
 
 | State | Leaves when |
 |---|---|
-| Inactive | after the startup settle, no creative app, launch or adopt the client → Running; render in progress → RenderActive |
+| Inactive | after the startup settle, no creative app, launch or adopt the client → Running; render in progress → RenderActive; creative app present → kill any client that is already running (one left over from a previous companion run, or started by hand) |
 | Running | render starts → kill → RenderActive; creative app appears → kill → Inactive; watchdog relaunches a dead client and kills a hung one after a grace period |
 | RenderActive | render finishes → Cooldown |
 | Cooldown | cooldown elapsed → launch/adopt → Running; render → RenderActive; creative app → Inactive |
