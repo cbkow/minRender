@@ -3,6 +3,8 @@
 #include "core/peer_info.h"
 
 #include <filesystem>
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 #include <map>
@@ -56,11 +58,40 @@ private:
     // Write own endpoint.json to {farmPath}/nodes/{nodeId}/
     void writeEndpoint();
 
+    // Re-create own endpoint.json if it vanished (farm cleanup, forgetPeer)
+    void ensureEndpointPresent();
+
     // Remove own endpoint.json on shutdown
     void removeEndpoint();
 
     // Scan {farmPath}/nodes/*/endpoint.json for new peers
     void discoverPeers();
+
+    // What the directory listing says about a node's endpoint.json:
+    // modification time + size, or nullopt if absent. Directory
+    // enumeration is the one metadata source the Windows SMB client does
+    // not serve from a cached file handle (see discoverPeers).
+    struct EndpointStamp
+    {
+        int64_t   mtime = 0;
+        uintmax_t size  = 0;
+        bool operator==(const EndpointStamp& o) const { return mtime == o.mtime && size == o.size; }
+        bool operator!=(const EndpointStamp& o) const { return !(*this == o); }
+    };
+    static std::optional<EndpointStamp> findEndpointEntry(const std::filesystem::path& nodeDir);
+
+    // Per-node read bookkeeping for the mtime-gated endpoint.json reads
+    struct EndpointReadState
+    {
+        bool          haveRead = false;
+        EndpointStamp stamp;              // listing stamp at the last good read
+        int64_t       timestampMs = 0;    // writer's timestamp_ms at the last good read
+        int64_t       retryAfterMs = 0;   // back-off after a failed or stale read
+        int           staleRetries = 0;   // consecutive stale-looking reads
+        int64_t       lastWarnMs = 0;     // rate-limit for read warnings
+    };
+    std::map<std::string, EndpointReadState> m_endpointReads;  // peer thread only
+    int64_t m_lastEndpointWriteMs = 0;                          // peer thread only
 
     // HTTP GET /api/status to each known peer
     void pollPeers();

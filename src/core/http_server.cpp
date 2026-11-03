@@ -915,7 +915,12 @@ void HttpServer::setupRoutes()
                 if (p != cfg.http_port) { cfg.http_port = p; needsRestart = true; }
             }
             if (body.contains("ip_override"))
-                cfg.ip_override = body["ip_override"].get<std::string>();
+            {
+                std::string v = body["ip_override"].get<std::string>();
+                // The advertised endpoint is fixed at farm start, so a
+                // new override only reaches endpoint.json after a restart.
+                if (v != cfg.ip_override) { cfg.ip_override = v; needsRestart = true; }
+            }
             if (body.contains("udp_enabled"))
             {
                 bool v = body["udp_enabled"].get<bool>();

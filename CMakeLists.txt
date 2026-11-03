@@ -127,7 +127,7 @@ set(MINRENDER_CORE_SOURCES
 # --- Platform-specific link libraries ---
 if(WIN32)
     set(PLATFORM_LIBS
-        shell32 ole32 oleaut32 Rpcrt4 dwmapi Advapi32 Ws2_32 Iphlpapi
+        shell32 ole32 oleaut32 Rpcrt4 dwmapi Advapi32 Ws2_32 Iphlpapi Mpr
         dxgi bcrypt
     )
 elseif(APPLE)

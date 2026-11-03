@@ -23,6 +23,7 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#include <chrono>
 #include <mutex>
 
 namespace MR {
@@ -243,6 +244,10 @@ public:
     bool startFarm();
     void stopFarm();
     void requestFarmRestart() { m_farmRestartRequested.store(true); }
+
+    // The IPv4 address peers should use for this node: the override if
+    // set, else the address that routes to the farm share's server.
+    std::string advertisedIp() const;
     bool isFarmRunning() const { return m_farmRunning; }
     const std::filesystem::path& farmPath() const { return m_farmPath; }
     bool hasFarmError() const { return !m_farmError.empty(); }
@@ -396,6 +401,9 @@ private:
     bool m_requestSubmission = false;
 
     // Deferred farm restart (set by HTTP handler, processed by update())
+    mutable std::mutex m_advertisedIpMutex;
+    mutable std::string m_advertisedIpCache;                         // guarded by m_advertisedIpMutex
+    mutable std::chrono::steady_clock::time_point m_advertisedIpCachedAt;  // guarded by m_advertisedIpMutex
     std::atomic<bool> m_farmRestartRequested{false};
 
     // Exit state

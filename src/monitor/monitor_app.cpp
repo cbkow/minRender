@@ -328,9 +328,7 @@ bool MonitorApp::startFarm()
     m_dispatchManager.init(this, &m_databaseManager);
 
     // Start HTTP server
-    std::string localIp = m_config.ip_override.empty()
-        ? getLocalIpAddress()
-        : m_config.ip_override;
+    std::string localIp = advertisedIp();
     uint16_t httpPort = m_config.http_port;
 
     if (!m_httpServer.start("0.0.0.0", httpPort))
@@ -373,6 +371,45 @@ bool MonitorApp::startFarm()
     m_wasLeader = false;
 
     return true;
+}
+
+std::string MonitorApp::advertisedIp() const
+{
+    if (!m_config.ip_override.empty())
+        return m_config.ip_override;
+
+    // Called per status request and heartbeat; the route lookup may hit
+    // DNS when sync_root names the server, so cache it for 30 s.
+    const auto now = std::chrono::steady_clock::now();
+    std::lock_guard<std::mutex> lock(m_advertisedIpMutex);
+    if (!m_advertisedIpCache.empty() && now - m_advertisedIpCachedAt < std::chrono::seconds(30))
+        return m_advertisedIpCache;
+
+    // Peers reach us over whatever network also carries the farm share,
+    // so the source address the OS picks for the share's server is the
+    // one to advertise: the LAN port in the office, the VPN tunnel at
+    // home. Enumeration order (getLocalIpAddress) would hand a Tailscale
+    // or WireGuard adapter to the office nodes.
+    std::string ip;
+    std::string how;
+    const std::string host = shareHostForPath(m_config.sync_root);
+    if (!host.empty())
+    {
+        ip = getLocalIpAddressTowards(host);
+        how = "route to share host " + host;
+    }
+    if (ip.empty())
+    {
+        ip = getLocalIpAddress();
+        how = host.empty() ? "first adapter (sync root is a local path)"
+                           : "first adapter (no route to share host " + host + ")";
+    }
+
+    if (ip != m_advertisedIpCache)
+        MonitorLog::instance().info("farm", "Advertising " + ip + " (" + how + ")");
+    m_advertisedIpCache = ip;
+    m_advertisedIpCachedAt = now;
+    return ip;
 }
 
 void MonitorApp::stopFarm()
@@ -2158,10 +2195,7 @@ std::string MonitorApp::getLeaderEndpoint() const
     // If we are the leader, return our own endpoint
     if (isLeader())
     {
-        std::string localIp = m_config.ip_override.empty()
-            ? getLocalIpAddress()
-            : m_config.ip_override;
-        return localIp + ":" + std::to_string(m_config.http_port);
+        return advertisedIp() + ":" + std::to_string(m_config.http_port);
     }
     return {};
 }
@@ -2385,10 +2419,7 @@ PeerInfo MonitorApp::buildLocalPeerInfo() const
     info.ready_for_work = m_agentSupervisor.readyForWork();
 
     // Endpoint
-    std::string localIp = m_config.ip_override.empty()
-        ? getLocalIpAddress()
-        : m_config.ip_override;
-    info.endpoint = localIp + ":" + std::to_string(m_config.http_port);
+    info.endpoint = advertisedIp() + ":" + std::to_string(m_config.http_port);
 
     return info;
 }
@@ -2431,9 +2462,7 @@ void MonitorApp::handleUdpMessages()
 
 void MonitorApp::sendUdpHeartbeat()
 {
-    std::string localIp = m_config.ip_override.empty()
-        ? getLocalIpAddress()
-        : m_config.ip_override;
+    std::string localIp = advertisedIp();
 
     nlohmann::json hb = {
         {"t", "hb"},

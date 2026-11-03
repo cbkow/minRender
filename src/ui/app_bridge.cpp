@@ -888,6 +888,7 @@ void AppBridge::saveSettings()
     const bool needsRestart =
            now.sync_root   != m_snapshot.sync_root
         || now.http_port   != m_snapshot.http_port
+        || now.ip_override != m_snapshot.ip_override
         || now.udp_enabled != m_snapshot.udp_enabled
         || now.udp_port    != m_snapshot.udp_port;
 

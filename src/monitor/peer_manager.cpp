@@ -7,6 +7,7 @@
 #include <fstream>
 #include <chrono>
 #include <algorithm>
+#include <stdexcept>
 
 namespace MR {
 
@@ -28,6 +29,8 @@ void PeerManager::start(const std::filesystem::path& farmPath,
     m_nodeId = nodeId;
     m_localEndpoint = localEndpoint;
     m_localTags = localTags;
+    m_endpointReads.clear();
+    m_lastEndpointWriteMs = 0;
 
     // Write initial endpoint immediately
     writeEndpoint();
@@ -161,7 +164,7 @@ void PeerManager::threadFunc()
 
     while (m_running.load())
     {
-        writeEndpoint();
+        ensureEndpointPresent();
         checkRestartSignal();
         discoverPeers();
         pollPeers();
@@ -173,6 +176,31 @@ void PeerManager::threadFunc()
     }
 
     MonitorLog::instance().info("peer", "PeerManager stopped");
+}
+
+std::optional<PeerManager::EndpointStamp>
+PeerManager::findEndpointEntry(const std::filesystem::path& nodeDir)
+{
+    std::error_code ec;
+    for (const auto& entry : std::filesystem::directory_iterator(nodeDir, ec))
+    {
+        if (entry.path().filename() != "endpoint.json")
+            continue;
+        // Read the stamp off the directory_entry, not the path: on MSVC the
+        // entry carries the FindFirstFile data, which is what keeps this
+        // fresh when a by-path query would be answered from the cache.
+        EndpointStamp st;
+        auto ft = entry.last_write_time(ec);
+        if (ec)
+            return std::nullopt;
+        st.mtime = std::chrono::duration_cast<std::chrono::milliseconds>(
+            ft.time_since_epoch()).count();
+        st.size = entry.file_size(ec);
+        if (ec)
+            st.size = 0;
+        return st;
+    }
+    return std::nullopt;
 }
 
 void PeerManager::writeEndpoint()
@@ -199,6 +227,15 @@ void PeerManager::writeEndpoint()
     ep.port = port;
     ep.timestamp_ms = nowMs();
 
+    // Written once per farm start (and again only if the file vanishes),
+    // NOT on a timer. Every rewrite is a rename-over on the share, and a
+    // Windows SMB client that keeps reopening a file another Windows
+    // client renames over can end up pinned to a cached handle of the old
+    // file — it then reads the old content for as long as it keeps
+    // reopening, and an IP change never propagates (2026-11-03 incident).
+    // Fewer rewrites mean fewer chances to trip that, and readers that
+    // only open on a listing change let their handles go dormant between
+    // writes. Nothing reads timestamp_ms; liveness is HTTP/UDP.
     try
     {
         nlohmann::json j = ep;
@@ -216,10 +253,24 @@ void PeerManager::writeEndpoint()
             std::ofstream ofs(endpointPath);
             ofs << j.dump(2);
         }
+        m_lastEndpointWriteMs = nowMs();
     }
     catch (const std::exception& e)
     {
         MonitorLog::instance().error("peer", std::string("Failed to write endpoint.json: ") + e.what());
+    }
+}
+
+void PeerManager::ensureEndpointPresent()
+{
+    // Give the share's directory cache time to reflect our own write
+    // before trusting a "missing" verdict (Windows caches listings ~10s).
+    if (nowMs() - m_lastEndpointWriteMs < 15000)
+        return;
+    if (!findEndpointEntry(m_farmPath / "nodes" / m_nodeId))
+    {
+        MonitorLog::instance().info("peer", "endpoint.json missing on the share — rewriting");
+        writeEndpoint();
     }
 }
 
@@ -237,6 +288,8 @@ void PeerManager::discoverPeers()
     if (!std::filesystem::is_directory(nodesDir, ec))
         return;
 
+    const auto now = nowMs();
+
     for (const auto& entry : std::filesystem::directory_iterator(nodesDir, ec))
     {
         if (!entry.is_directory())
@@ -246,59 +299,128 @@ void PeerManager::discoverPeers()
         if (nodeId == m_nodeId)
             continue;  // skip self
 
-        auto endpointPath = entry.path() / "endpoint.json";
-        if (!std::filesystem::exists(endpointPath, ec))
+        // Presence and change detection come from the directory listing,
+        // never from opening the file. On Windows, repeatedly opening a
+        // file that another Windows client renames over can pin this
+        // client to a cached handle of the *old* file: every open then
+        // returns the old content (or fails with ERROR_INVALID_PARAMETER),
+        // exists() and by-path attribute queries follow suit, and only the
+        // listing stays truthful. So the file is opened only when the
+        // listing says it changed, which also lets the cached handle go
+        // dormant between changes so the next open is a real one.
+        auto stamp = findEndpointEntry(entry.path());
+        if (!stamp)
             continue;
+
+        auto& rs = m_endpointReads[nodeId];
+
+        bool known;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            known = m_peers.find(nodeId) != m_peers.end();
+        }
+        if (rs.haveRead && known && rs.stamp == *stamp)
+            continue;  // unchanged since our last good read
+        if (now < rs.retryAfterMs)
+            continue;  // backing off after a failed/stale read
+
+        auto endpointPath = entry.path() / "endpoint.json";
+        auto warn = [&](const std::string& msg)
+        {
+            if (now - rs.lastWarnMs > 300000)
+            {
+                MonitorLog::instance().warn("peer", msg);
+                rs.lastWarnMs = now;
+            }
+        };
 
         // Read and parse endpoint.json. This is the only authority for a
         // peer's endpoint (UDP heartbeats deliberately can't set one), so
         // known peers are re-read too rather than skipped — otherwise a
         // node that legitimately changed IP could never be corrected.
+        PeerEndpoint ep;
         try
         {
             std::ifstream ifs(endpointPath);
             if (!ifs.good())
-                continue;
-
+                throw std::runtime_error("open failed");
             auto j = nlohmann::json::parse(ifs);
-            PeerEndpoint ep = j.get<PeerEndpoint>();
+            ep = j.get<PeerEndpoint>();
+        }
+        catch (const std::exception& e)
+        {
+            // Was a silent skip; a peer whose file can't be read is
+            // invisible otherwise. Back off so a poisoned cached handle
+            // can expire before the next attempt.
+            rs.retryAfterMs = now + 15000;
+            warn("Could not read endpoint.json for " + nodeId + " (" + e.what() +
+                 ") — retrying in 15 s");
+            continue;
+        }
 
-            // The directory name is the node's identity; a file claiming a
-            // different node_id would key the peer map inconsistently.
-            if (ep.node_id != nodeId)
-                continue;
+        // The directory name is the node's identity; a file claiming a
+        // different node_id would key the peer map inconsistently.
+        if (ep.node_id != nodeId)
+            continue;
 
-            std::string endpoint = ep.ip + ":" + std::to_string(ep.port);
-
-            std::lock_guard<std::mutex> lock(m_mutex);
-            auto it = m_peers.find(nodeId);
-            if (it != m_peers.end())
+        // Stale-cache detection: the listing says the file changed, but
+        // the content is byte-for-byte what we read last time (every
+        // write stamps a new timestamp_ms). That is the SMB client
+        // handing back its cached copy. Leave the file alone for a while
+        // so the handle can expire, then try again.
+        if (rs.haveRead && rs.stamp != *stamp && ep.timestamp_ms == rs.timestampMs)
+        {
+            // Escalate 20 s → 40 s (a cached handle was seen to outlive a
+            // 3 s gap but not a 46 s one), then accept: a file that still
+            // reads the same after a minute untouched is genuinely
+            // unchanged (someone touched it without rewriting).
+            if (rs.staleRetries < 2)
             {
-                // Known peer — only correct the endpoint, keep live state.
-                if (it->second.endpoint != endpoint)
-                {
-                    MonitorLog::instance().info("peer", "Peer endpoint changed: " +
-                        nodeId + " " + it->second.endpoint + " -> " + endpoint);
-                    it->second.endpoint = endpoint;
-                }
+                ++rs.staleRetries;
+                const int64_t delay = 20000 * rs.staleRetries;
+                rs.retryAfterMs = now + delay;
+                warn("Stale read of endpoint.json for " + nodeId +
+                     " (changed on the share, content unchanged — SMB client cache); retrying in " +
+                     std::to_string(delay / 1000) + " s");
                 continue;
             }
-
-            PeerInfo info;
-            info.node_id = ep.node_id;
-            info.endpoint = endpoint;
-            info.is_alive = true;
-            info.failed_polls = 0;
-            info.last_seen_ms = 0;  // not yet polled
-
-            m_peers[nodeId] = info;
-            MonitorLog::instance().info("peer", "Discovered peer: " + nodeId +
-                " at " + info.endpoint);
+            MonitorLog::instance().info("peer", "endpoint.json for " + nodeId +
+                " still reads unchanged after backing off — accepting it");
         }
-        catch (const std::exception&)
+
+        rs.haveRead = true;
+        rs.stamp = *stamp;
+        rs.timestampMs = ep.timestamp_ms;
+        rs.retryAfterMs = 0;
+        rs.staleRetries = 0;
+
+        std::string endpoint = ep.ip + ":" + std::to_string(ep.port);
+
+        std::lock_guard<std::mutex> lock(m_mutex);
+        auto it = m_peers.find(nodeId);
+        if (it != m_peers.end())
         {
-            // Malformed endpoint.json — skip
+            // Known peer — only correct the endpoint, keep live state.
+            if (it->second.endpoint != endpoint)
+            {
+                MonitorLog::instance().info("peer", "Peer endpoint changed: " +
+                    nodeId + " " + it->second.endpoint + " -> " + endpoint);
+                it->second.endpoint = endpoint;
+                it->second.failed_polls = 0;  // give the new address a clean run
+            }
+            continue;
         }
+
+        PeerInfo info;
+        info.node_id = ep.node_id;
+        info.endpoint = endpoint;
+        info.is_alive = true;
+        info.failed_polls = 0;
+        info.last_seen_ms = 0;  // not yet polled
+
+        m_peers[nodeId] = info;
+        MonitorLog::instance().info("peer", "Discovered peer: " + nodeId +
+            " at " + info.endpoint);
     }
 }
 
@@ -451,11 +573,11 @@ void PeerManager::pollPeers()
         {
             if (!it->second.is_alive)
             {
-                auto endpointPath = m_farmPath / "nodes" / it->first / "endpoint.json";
-                std::error_code ec;
-                if (!std::filesystem::exists(endpointPath, ec))
+                // Listing, not exists(): see discoverPeers on SMB caching.
+                if (!findEndpointEntry(m_farmPath / "nodes" / it->first))
                 {
                     MonitorLog::instance().info("peer", "Removed stale peer: " + it->first);
+                    m_endpointReads.erase(it->first);  // next appearance is read fresh
                     it = m_peers.erase(it);
                     continue;
                 }
