@@ -8,6 +8,28 @@
     <language>en</language>
     <!-- @@APPCAST_INSERT@@ -->
     <item>
+      <title>Version 0.5.11</title>
+      <link>https://minrender.com/</link>
+      <sparkle:version>0.5.11</sparkle:version>
+      <sparkle:shortVersionString>0.5.11</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>12.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<ul>
+<li><b>Nodes on a VPN now get work</b> &mdash; a node that reaches the share over WireGuard or Tailscale advertised its tunnel address, so the office nodes could not reach it. minRender now advertises the address it actually uses to reach the share.</li>
+<li><b>Peer addresses no longer go stale</b> &mdash; Windows kept serving other nodes the first version of a peer's address file it had opened, for an hour or more, after the file changed on the share. Nodes now write that file once per farm start, and only re-read a peer's file when the share listing shows it changed, so the cached copy cannot mask a change.</li>
+<li><b>IP override applies on Save</b> &mdash; changing the advertised IP in Settings now restarts the farm services like the other network settings do, instead of waiting for a relaunch.</li>
+<li><b>Dead peers are dropped</b> &mdash; a node whose address file has gone from the share is removed from the peer list instead of being polled forever.</li>
+</ul>
+<p><b>Action needed</b> &mdash; every node should move to 0.5.11; nodes still on 0.5.10 keep rewriting their address file every 3 seconds, which is what trips the caching on the other Windows nodes. Windows nodes restart on their own after the Store update.</p>
+      ]]></description>
+      <pubDate>Thu, 05 Nov 2026 11:40:32 -0500</pubDate>
+      <enclosure
+        url="https://github.com/cbkow/MinRender/releases/download/v0.5.11/minRender-0.5.11-macOS.dmg"
+        sparkle:edSignature="X/lPDQFwZzsRPatyv88p97lcxGL8eEe8nqPA9Myr+zfAjeVISai0CXEK+LIMfVwk+R6p9U2VPtn26oV14EmPDg=="
+        length="127748108"
+        type="application/octet-stream" />
+    </item>
+    <item>
       <title>Version 0.5.10</title>
       <link>https://minrender.com/</link>
       <sparkle:version>0.5.10</sparkle:version>
