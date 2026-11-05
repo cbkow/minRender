@@ -1,4 +1,4 @@
-// MinRender.jsx — Farm submitter for After Effects (version 0.5.10, tracks the minRender app)
+// MinRender.jsx — Farm submitter for After Effects (version 0.5.11, tracks the minRender app)
 // Install to: ScriptUI Panels folder for dockable panel, or run via File > Scripts
 //
 // Reads queued render queue items and submits each as a MinRender job
@@ -10,7 +10,7 @@
     var SCRIPT_NAME = "MinRender";
     // Tracks the minRender app version. 0.5.8: reads the data folder from
     // %USERPROFILE%\minRender (falls back to the pre-0.5.8 AppData folder).
-    var SCRIPT_VERSION = "0.5.10";
+    var SCRIPT_VERSION = "0.5.11";
 
     // -- Shared state ---------------------------------------------------------
 

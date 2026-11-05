@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(MinRender VERSION 0.5.10 LANGUAGES C CXX)
+project(MinRender VERSION 0.5.11 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

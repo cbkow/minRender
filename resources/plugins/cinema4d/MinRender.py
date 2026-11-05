@@ -1,4 +1,4 @@
-# MinRender.py — Farm submitter for Cinema 4D (version 0.5.10, tracks the minRender app)
+# MinRender.py — Farm submitter for Cinema 4D (version 0.5.11, tracks the minRender app)
 # Install via: Script > Script Manager > Import Script
 # Or copy to your C4D scripts folder and run from the Script menu.
 #
@@ -13,7 +13,7 @@ import platform
 
 # Tracks the minRender app version. 0.5.8: reads the data folder from
 # %USERPROFILE%\minRender (falls back to the pre-0.5.8 AppData folder).
-PLUGIN_VERSION = "0.5.10"
+PLUGIN_VERSION = "0.5.11"
 import socket
 import time
 
