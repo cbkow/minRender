@@ -1,4 +1,5 @@
 #include "core/net_utils.h"
+#include <min_paths.h>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -166,56 +167,12 @@ std::string getLocalIpAddressTowards(const std::string& host)
 
 std::string shareHostForPath(const std::string& path)
 {
-    if (path.empty())
-        return {};
-
-    // UNC: \\host\share\... or //host/share/...
-    if (path.size() > 2 &&
-        ((path[0] == '\\' && path[1] == '\\') || (path[0] == '/' && path[1] == '/')))
-    {
-        size_t start = 2;
-        size_t end = path.find_first_of("\\/", start);
-        std::string host = path.substr(start, end == std::string::npos ? std::string::npos : end - start);
-        // Strip "user@" (macOS mount sources look like //user@host/share)
-        auto at = host.rfind('@');
-        if (at != std::string::npos)
-            host = host.substr(at + 1);
-        return host;
-    }
-
-#ifdef _WIN32
-    // Mapped drive letter: ask the network provider for the UNC target.
-    if (path.size() >= 2 && path[1] == ':')
-    {
-        wchar_t local[3] = { static_cast<wchar_t>(path[0]), L':', 0 };
-        wchar_t remote[1024] = {};
-        DWORD len = static_cast<DWORD>(sizeof(remote) / sizeof(remote[0]));
-        if (WNetGetConnectionW(local, remote, &len) == NO_ERROR)
-        {
-            std::string unc;
-            for (wchar_t* c = remote; *c; ++c)
-                unc.push_back(*c < 128 ? static_cast<char>(*c) : '?');
-            return shareHostForPath(unc);
-        }
-    }
-    return {};
-#elif defined(__APPLE__)
-    // Mount point: statfs() reports the source the volume was mounted from
-    // (//user@host/share for SMB, host:/export for NFS).
-    struct statfs sf{};
-    if (statfs(path.c_str(), &sf) == 0)
-    {
-        std::string from = sf.f_mntfromname;
-        if (from.rfind("//", 0) == 0)
-            return shareHostForPath(from);
-        auto colon = from.find(":/");
-        if (colon != std::string::npos && from.find('/') > colon)
-            return from.substr(0, colon);
-    }
-    return {};
-#else
-    return {};
-#endif
+    // min-paths `classify::share_host_for_path` (MinRender's rules: UNC host with `user@` stripped, a mapped drive
+    // through WNetGetConnectionW, a macOS mount's statfs source — `//user@host/share` or `host:/export`).
+    char* host = mp_share_host_for_path(path.c_str());
+    std::string out = host ? host : "";
+    mp_free(host);
+    return out;
 }
 
 std::pair<std::string, int> parseEndpoint(const std::string& endpoint)

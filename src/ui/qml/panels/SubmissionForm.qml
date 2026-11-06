@@ -304,9 +304,8 @@ Item {
                             // if one is set.
                             const cur = flagInput.text
                             if (cur && cur.length > 0) {
-                                // Convert Windows paths to file URL for QML.
-                                flagFilePicker.currentFile =
-                                    "file:///" + cur.replace(/\\/g, "/")
+                                // A file URL for the picker (min-paths: encoded, UNC + POSIX aware).
+                                flagFilePicker.currentFile = appBridge.localPathToUrl(cur)
                             }
                             flagFilePicker.open()
                         }

@@ -2298,7 +2298,15 @@ void AppBridge::requestRestart()
 
 QString AppBridge::urlToLocalPath(const QUrl& url) const
 {
-    return url.toLocalFile();
+    // min-paths `url::file_url_to_path` (the same shapes QUrl::toLocalFile handles, plus `file://localhost/`).
+    const QByteArray u = url.toString(QUrl::FullyEncoded).toUtf8();
+    return QString::fromStdString(MR::takeMp(mp_file_url_to_path(u.constData())));
+}
+
+QString AppBridge::localPathToUrl(const QString& path) const
+{
+    const QByteArray p = path.toUtf8();
+    return QString::fromStdString(MR::takeMp(mp_path_to_file_url(p.constData())));
 }
 
 bool AppBridge::syncRootIsValid() const

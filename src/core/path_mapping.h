@@ -1,6 +1,8 @@
 #pragma once
 
 #include "core/config.h"
+#include <min_paths.h>
+#include <nlohmann/json.hpp>
 
 #include <string>
 #include <vector>
@@ -47,66 +49,28 @@ inline std::string toNativeSeparators(const std::string& path, const std::string
     return result;
 }
 
-/// Translate a path from sourceOS to targetOS using the given mappings.
-/// Returns the original path (with separator normalization) if no mapping matches.
+/// A string from min-paths' C ABI, freed here.
+inline std::string takeMp(char* s)
+{
+    if (!s) return {};
+    std::string out(s);
+    mp_free(s);
+    return out;
+}
+
+/// Translate a path from sourceOS to targetOS using the given mappings — min-paths `map::translate` (minplatform canon
+/// §22, row 121): the first enabled mapping with both roots set wins, a root matches only on a COMPONENT BOUNDARY
+/// (`/Vol/share` no longer matches `/Vol/share-extra` — the check this header lacked), Windows sources compare
+/// case-insensitively with the drive letter stripped, the result takes the target OS's separators. No mapping matched
+/// (or an unknown OS tag) → separators swapped only, as before.
 inline std::string translatePath(
     const std::string& sourceOS,
     const std::string& targetOS,
     const std::string& path,
     const std::vector<PathMapping>& mappings)
 {
-    if (sourceOS == targetOS)
-        return toNativeSeparators(path, targetOS);
-
-    std::string normalized = normalizePath(path);
-
-    for (const auto& m : mappings)
-    {
-        if (!m.enabled) continue;
-
-        std::string srcPrefix = normalizePath(mappingPrefix(m, sourceOS));
-        const std::string& tgtPrefix = mappingPrefix(m, targetOS);
-
-        if (srcPrefix.empty() || tgtPrefix.empty()) continue;
-
-        // Case-insensitive match on Windows source
-        bool matches = false;
-        if (sourceOS == "win")
-        {
-            std::string normLower = normalized;
-            std::string srcLower = srcPrefix;
-            std::transform(normLower.begin(), normLower.end(), normLower.begin(), ::tolower);
-            std::transform(srcLower.begin(), srcLower.end(), srcLower.begin(), ::tolower);
-            matches = normLower.rfind(srcLower, 0) == 0;
-        }
-        else
-        {
-            matches = normalized.rfind(srcPrefix, 0) == 0;
-        }
-
-        if (matches)
-        {
-            std::string remainder = normalized.substr(srcPrefix.size());
-            // Strip leading slash from remainder
-            if (!remainder.empty() && remainder[0] == '/')
-                remainder = remainder.substr(1);
-
-            std::string normTarget = normalizePath(tgtPrefix);
-            // Strip trailing slash from target (covers both '/' and '\'
-            // since normalizePath already converted '\' to '/')
-            while (!normTarget.empty() && normTarget.back() == '/')
-                normTarget.pop_back();
-
-            std::string result = remainder.empty()
-                ? normTarget
-                : normTarget + "/" + remainder;
-
-            return toNativeSeparators(result, targetOS);
-        }
-    }
-
-    // No mapping matched — normalize separators only
-    return toNativeSeparators(path, targetOS);
+    const std::string rows = nlohmann::json(mappings).dump();
+    return takeMp(mp_translate_with(sourceOS.c_str(), targetOS.c_str(), path.c_str(), rows.c_str()));
 }
 
 /// Translate a path from the current OS form to canonical Windows form.

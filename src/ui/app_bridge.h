@@ -392,6 +392,9 @@ public:
     // letters, and percent-encoded characters — all things naive string
     // stripping in QML gets wrong.
     Q_INVOKABLE QString urlToLocalPath(const QUrl& url) const;
+    // A local path → file URL for QML pickers (min-paths: percent-encoded; `file:///C:/…`, `file://host/share/…`,
+    // `file:///…` — the QML seed used to build "file:///" + path with no UNC, POSIX or encoding handling).
+    Q_INVOKABLE QString localPathToUrl(const QString& path) const;
 
     // Whether the current config.sync_root resolves to an existing
     // directory. Lets the Settings panel tell the user their path is

@@ -942,3 +942,9 @@ system. Exact linkage varies by platform:
     OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
     NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
     CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+----------------------------------------------------------------------
+min-paths (minplatform, crates/min-paths + crates/min-paths-ffi)
+https://github.com/cbkow/minplatform
+License: MIT OR Apache-2.0
+Linked as a static library: cross-OS path translation, the share-host probe, file URLs.

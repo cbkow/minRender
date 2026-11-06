@@ -51,6 +51,10 @@ set(SQLITECPP_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(SQLITECPP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(SQLiteCpp)
 
+# min-paths (minplatform canon §22): the family's path kit — cross-OS path translation (with the component-boundary
+# check), the share-host probe, file URLs — as a Rust static library built by cargo from the sibling checkout.
+include(cmake/MinPaths.cmake)
+
 # --- Qt 6.8 (GUI target only; headless target has no Qt dependency) ---
 find_package(Qt6 6.8 REQUIRED COMPONENTS
     Core
@@ -307,6 +311,7 @@ target_link_libraries(minrender PRIVATE
     nlohmann_json::nlohmann_json
     httplib::httplib
     SQLiteCpp
+    minrender::minpaths
     ${PLATFORM_LIBS}
 )
 
@@ -528,6 +533,7 @@ target_link_libraries(minrender-headless PRIVATE
     nlohmann_json::nlohmann_json
     httplib::httplib
     SQLiteCpp
+    minrender::minpaths
     ${PLATFORM_LIBS}
 )
 
