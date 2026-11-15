@@ -9,14 +9,13 @@ Install minRender on every node that will participate in the farm. Nodes can be 
 
 ## Windows
 
-Install minRender from the [Microsoft Store](https://apps.microsoft.com/detail/9PN4VXDZ3THW) for automatic updates:
+Install minRender from the [Microsoft Store](https://apps.microsoft.com/detail/9PN4VXDZ3THW). The Store is the only Windows channel and delivers the updates:
 
 <a href="https://apps.microsoft.com/detail/9PN4VXDZ3THW?referrer=appbadge&mode=full" target="_blank" rel="noopener noreferrer">
   <img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200" style="border: 1px solid #707070; border-radius: 4.5px;"/>
 </a>
 
-Requires **Windows 10 (version 2004 or later) or Windows 11** (see Requirements below). For farm nodes you can
-install from a terminal without opening the Store:
+For farm nodes you can install from a terminal without opening the Store:
 
 ```
 winget install --id 9PN4VXDZ3THW --source msstore --accept-package-agreements
@@ -24,68 +23,50 @@ winget install --id 9PN4VXDZ3THW --source msstore --accept-package-agreements
 
 ### Requirements
 
-- **Windows 10 version 2004 (build 19041) or later, or Windows 11**, x64
-  (any edition).
-- The render application(s) you submit to — Blender, After Effects or Cinema 4D — installed on each node that should render.
+- **Windows 10 version 2004 (build 19041) or later, or Windows 11**, x64 (any edition).
+- Blender installed on each node that should render (or whatever renderer your own [templates](templates.md) launch).
 
-The Store package declares firewall rules for HTTP port **8420** and UDP port **4243** and registers a startup task so minRender launches with the machine (toggle it in Task Manager → Startup).
+The Store package declares firewall rules for HTTP port **8420** and UDP port **4243** and registers a startup task, so minRender starts hidden in the tray when you sign in (toggle it in Task Manager → Startup).
+
+{: .note }
+> On render nodes, turn the Store's automatic app updates off and upgrade the farm when it is idle:
+> `winget upgrade --id 9PN4VXDZ3THW --source msstore --accept-package-agreements`
 
 ### Where minRender keeps its data
 
-Everything minRender stores on the machine lives in one per-user folder,
-`%USERPROFILE%\minRender` — that is `C:\Users\<you>\minRender` (type
-`%USERPROFILE%\minRender` into Explorer's address bar):
+Everything minRender stores on the machine lives in one per-user folder, `%USERPROFILE%\minRender` — that is `C:\Users\<you>\minRender`:
 
 | Item | What it is |
 |---|---|
-| `config.json` | farm settings: sync root, ports, node name |
+| `config.json` | this node's settings: sync root, ports, tags, path mappings |
 | `node_id.txt` | this node's identity on the farm |
-| `minrender.db` | local job/chunk history |
-| `submissions\` | hand-off folder: the Blender, After Effects and Cinema 4D plug-ins drop job files here and minRender picks them up |
-| `staging\` | frames in flight while a chunk renders; emptied when the chunk finishes |
-| `mr-agent.log` | render agent log |
+| `minrender.db` | the queue, while this node is the leader |
+| `submissions\` | hand-off folder: the Blender add-on drops job files here and minRender picks them up |
+| `staging\` | frames in flight while a chunk renders with local staging on; emptied when the chunk finishes |
+| `window.json` | the window's size and panel sizes |
+| `no-farm\` | scratch state while the node has no farm (see below) |
 
-The folder is deliberately outside `AppData`, which the Store package
-keeps private, so the plug-ins (which run inside Blender, After Effects or
-Cinema 4D) can read the farm settings and write submissions, and so a node
-reinstalled or upgraded keeps its identity.
-
-**Upgrading from 0.5.7 or earlier:** those versions kept the folder at
-`%LOCALAPPDATA%\MinRender`. The first launch of 0.5.8 copies it to the new
-location (everything except in-flight `staging\` frames) and keeps watching
-the old `submissions\` folder, so plug-ins you have not updated yet still
-submit. Once the plug-ins on your workstations are reinstalled from the farm
-share's `MinRender-v2\plugins` folder (version 0.5.8 or later, see
-[Submit a job](submit.md)), delete the old folder.
+The folder is deliberately outside `AppData`, which the Store package keeps private, so the Blender add-on (which runs inside Blender) can read the settings and write submissions, and so a node that is reinstalled or upgraded keeps its identity.
 
 ### Uninstall
 
-Uninstall from **Settings → Apps** (or `winget uninstall --id 9PN4VXDZ3THW`)
-like any Store app. That removes the program, its startup task and firewall
-rules, and the package's private data. The data folder above is left in
-place so your farm settings and node identity survive a reinstall. To remove
-it too, delete `%USERPROFILE%\minRender`, or from a terminal:
-
-```
-rmdir /s /q "%USERPROFILE%\minRender"
-```
-
-If you installed the optional [RNDR companion](https://github.com/cbkow/MinRender/tree/main/tools/rndr-companion),
-run its `uninstall.ps1` first; it also lives in that folder.
+Uninstall from **Settings → Apps** (or `winget uninstall --id 9PN4VXDZ3THW`) like any Store app. That removes the program, its startup task and firewall rules. The data folder above is left in place so your settings and node identity survive a reinstall. To remove it too, delete `%USERPROFILE%\minRender`.
 
 ---
 
 ## macOS
 
-Download the latest release [here](https://github.com/cbkow/MinRender/releases/latest/).
+Download the latest release [here](https://github.com/cbkow/MinRender/releases/latest/). Requires **macOS 13 or later**.
 
 1. Open the `.dmg` file.
 2. Drag **minRender** to your **Applications** folder.
 3. Launch from Applications or Spotlight.
 
+minRender keeps its data in `~/Library/Application Support/MinRender` (the same files as in the table above).
+
 ### Updates
 
-Once installed in **Applications**, minRender keeps itself up to date — it checks once a day and offers to download and install new versions in place. You can also check any time from **About → Check for Updates…**. (In-place updates require running minRender from the Applications folder, not from the mounted disk image.)
+Once installed in **Applications**, minRender keeps itself up to date — it checks once a day and offers to download and install new versions in place. You can also check any time from **minRender → Check for Updates…** in the menu bar, or from the menu-bar icon's menu.
 
 ---
 
@@ -93,26 +74,36 @@ Once installed in **Applications**, minRender keeps itself up to date — it che
 
 ## Point each node at the shared folder
 
-Open the Monitor, go to **File → Settings…**, and browse to or paste a shared directory that **every** node can reach. This can be:
+A new installation starts with **NO FARM** in its title row. Click **Settings** (top right), and browse to or paste a shared directory that **every** node can reach — the **sync root**. This can be:
 
 - an SMB share on a NAS,
 - a synced folder via LucidLink, Dropbox, Synology Drive, Resilio, Syncthing, or similar.
 
-That folder holds the node phonebook, leader state, job records, and aggregated logs (MinRender + DCC stdout). Press **Save**.
+Press **Save**; minRender restarts itself on the farm.
 
-![MinRender Settings](/images/mr006.jpg)
+![minRender Settings](/images/mr1-settings.png)
 
-Repeat on every node. As soon as two or more nodes share the same sync root, they'll discover each other and elect a leader.
+Repeat on every node. As soon as two or more nodes share the same sync root, they discover each other and elect a leader.
+
+{: .note }
+> **No farm.** If the sync root is not set, or is not reachable when minRender starts (a share that is not mounted yet, a
+> sync client that has not started), minRender does not give up: it shows **NO FARM** and why, looks for the folder
+> every few seconds, and joins the farm by itself as soon as the folder is there.
 
 ## What gets created in the sync root
 
+Inside the sync root minRender makes one folder, `MinRender-v2`:
+
 | Subfolder | Purpose |
 |---|---|
-| `nodes/` | Per-node phonebook entries — each node writes its own `meta.json` and heartbeat here. |
-| `jobs/` | Active and finished job records, plus per-chunk DCC stdout logs. |
-| `templates/examples/` | Read-only example templates that ship with MinRender. Override by dropping your own template with the same `template_id` into `templates/`. |
-| `plugins/` | Installable DCC submitters (After Effects, Blender, Cinema 4D) — see [Submit a job](submit.md). |
+| `nodes/` | The phonebook — each node writes its own entry and its own log here. |
+| `jobs/` | Per-chunk render logs (the renderer's own output) for each job. |
+| `state/` | The leader's snapshot of the queue, for the next leader. |
+| `templates/examples/` | Example templates that ship with minRender. Override one by dropping your own template with the same `template_id` into `templates/`. |
+| `templates/plugins/` | The templates the submission add-on uses. |
+| `plugins/blender/` | The Blender add-on — see [Submit a job](submit.md). |
+| `farm.json` | The farm's shared secret. Every node of one farm holds the same one. |
 
 ## Next
 
-Configure the node's [tags and local staging](configure.md), then [submit your first job](submit.md).
+Configure the node's [tags, path mappings and local staging](configure.md), then [submit your first job](submit.md).

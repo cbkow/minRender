@@ -5,52 +5,41 @@ nav_order: 4
 
 # Submit a job
 
-You can submit a job two ways: from the MinRender Monitor itself, or from one of the DCC plugins shipped in the sync root's `plugins/` folder.
+You can submit a job two ways: from minRender itself, or from the Blender add-on shipped in the sync root's `plugins/` folder.
 
-## From the Monitor
+## From minRender
 
-Click **New Job** in the Jobs panel (or **Jobs → New Job…** in the menu bar), then pick a template.
+Click **New Job** at the top right of the window and pick a template. minRender ships one for the form, **Blender 5.3 — Studio (Simple)**; your own templates appear beside it.
 
-![Job templates picker](/images/mr010.jpg)
+![New Job](/images/mr1-newjob.png)
 
-Fill out the form. Fields marked with an asterisk are required; everything else is either ignored or left to the DCC's defaults if blank. Press **Submit**.
+Fill out the form. Fields whose label is amber are required. **Browse** opens a file picker for the scene file. Press **Submit**; the new job is selected in the list.
 
-**Priority** defaults to 50 — lower numbers render sooner. It isn't locked in at submission: you can change it later from the job detail view, or drag jobs of equal priority into a custom order in the Jobs panel. See [job order & priority](monitor.md#job-order--priority).
-
-![Job submission form](/images/mr011.jpg)
+- **Start / End / Chunk** — the frame range, and how many frames go to a node at a time.
+- **Priority** defaults to 50 — lower numbers render sooner. It isn't locked in at submission: you can change it later from the job detail, or drag jobs of equal priority into a custom order. See [job order & priority](monitor.md#job-order--priority).
+- If a path lies outside every [path mapping](configure.md#path-mappings), an amber line under the field says so. The job is still submitted; only machines that have that exact path can render it.
 
 {: .note }
 > It's easy to create your own templates with only the fields you care about. Navigate to your sync root and duplicate one of the files under `templates/examples/`, drop the copy into `templates/`, strip flags you don't want, and prefill defaults. See [Job templates](templates.md) for the full reference.
 
-## From a DCC plugin
+## From Blender
 
-The DCC plugins build the same JSON submission the Monitor's form does, but they pull frame ranges, output paths, and scene metadata straight from the application. Plugin files live in the sync root under `plugins/`; the first minRender node to start a newer version refreshes them there (an older node never overwrites them, so on a mixed-version farm the share keeps the newest).
+The add-on builds the same submission the form does, but pulls the frame range, the output path and the scene from Blender.
 
-**Upgrading to 0.5.8:** reinstall each plugin from `plugins/` on every workstation that submits. 0.5.8 moved minRender's Windows data folder to `%USERPROFILE%\minRender`; the new plugins (version 0.5.8, shown in the Blender add-on list and in the After Effects and Cinema 4D window titles) look there first. Older plugins keep working through the transition because minRender also watches the old folder, but update them before deleting `%LOCALAPPDATA%\MinRender`.
-
-### After Effects
-
-Install `plugins/afterEffects/MinRender.jsx` into your After Effects `Scripts/ScriptUI Panels` folder, then open it from **Window → MinRender**. Press **Scan Render Queue** to load active items, set options, and press **Submit**.
-
-![After Effects submitter](/images/AfterFX_FcOV6mcLiw.png)
-
-{: .note }
-> Chunk size is honored for image sequences, but not for video outputs. For video, the plugin automatically sets chunk size to the full duration so a single file gets rendered.
-
-### Blender
-
-Use **Edit → Preferences → Add-ons → Install from Disk** in Blender and point it at `plugins/blender/MinRender.py`. The MinRender submitter appears in the Render Properties panel. It auto-collects your output path and frame range, but you can adjust them before pressing **Submit to Farm**.
+Use **Edit → Preferences → Add-ons → Install from Disk** in Blender and point it at `plugins/blender/MinRender.py` in the sync root's `MinRender-v2` folder. The minRender submitter appears in the Render Properties panel. It collects your output path and frame range, and you can adjust them before pressing **Submit to Farm**.
 
 ![Blender submitter](/images/blender_RQADDXgy9f.png)
 
-### Cinema 4D
-
-Copy `plugins/cinema4d/MinRender.py` into your `%appdata%\Maxon\<C4D version>\library\scripts` folder. Run it from **Extensions → User Scripts → MinRender**. It pulls render paths and frame ranges from your scene's render settings. Press **Submit to Farm** when ready.
-
-![Cinema 4D submitter](/images/Cinema_4D_0cGq7BI1CC.png)
+The add-on hands the job to the minRender running on the same machine, so minRender must be running there (hidden in the tray is fine).
 
 {: .note }
-> Cinema 4D has only been tested with a single license so far. It should work fine distributed across the farm though (famous last words).
+> The add-on file in the sync root is kept current by the farm: the leader writes the newest version there. Blender does
+> not pick that up by itself — **after upgrading minRender, install the add-on again** on every workstation that
+> submits. Its version, shown in Blender's add-on list, matches the minRender version it came with.
+
+## Other renderers
+
+minRender launches any command-line renderer a [template](templates.md) describes. Templates and submission plug-ins for After Effects and Cinema 4D shipped with minRender 0.5; they are not part of 1.0 and remain on the [`0.5.x` branch](https://github.com/cbkow/MinRender/tree/0.5.x) as a starting point.
 
 ## Next
 

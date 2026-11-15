@@ -18,6 +18,9 @@ network.
   and node information are written to the shared folder you choose and to
   each machine's local application data. They are exchanged only between
   your own render nodes over your LAN or VPN.
+  If the shared folder you choose is a synced folder (Dropbox, Synology
+  Drive and the like), that service stores what is in it — including the
+  farm's shared secret — under its own terms.
 - **Network use.** Nodes talk to each other over HTTP on a port you
   configure and discover each other with local multicast. Those connections
   are confined to your network.
@@ -26,8 +29,8 @@ network.
   no personal information. The Windows build does not do this; the
   Microsoft Store handles updates.
 - **Render applications.** minRender launches the render software you have
-  installed (Blender, After Effects, Cinema 4D). Their own network behaviour
-  and privacy terms are theirs, not ours.
+  installed (Blender, or whatever your templates launch). Its own network
+  behaviour and privacy terms are its makers', not ours.
 
 ## Data we hold
 
@@ -43,4 +46,4 @@ release notes.
 Questions: open an issue at
 [github.com/cbkow/MinRender](https://github.com/cbkow/MinRender/issues).
 
-_Last updated 2026-10-17._
+_Last updated 2026-11-15._

@@ -5,9 +5,11 @@ nav_order: 6
 
 # Job templates
 
-A job template is a JSON file that tells MinRender how to launch a DCC's command-line renderer. It defines the executable, the argument structure, how to parse progress from stdout, and sensible defaults for the submission form.
+A job template is a JSON file that tells minRender how to launch a command-line renderer. It defines the executable, the argument structure, how to parse progress from stdout, and sensible defaults for the submission form.
 
-Templates live in `{farm}/templates/`. Example templates ship in `{farm}/templates/examples/` and are overridden by user templates with the same `template_id`.
+Your own templates live in `{farm}/templates/` (`{farm}` is the `MinRender-v2` folder in the sync root). The example template that ships with minRender is in `{farm}/templates/examples/` and is overridden by a user template with the same `template_id`. The templates the Blender add-on submits through are in `{farm}/templates/plugins/`; they do not show in the New Job form.
+
+minRender never deletes a template from the sync root. The leader rewrites the shipped ones when a newer minRender joins the farm, so keep your changes in copies under `templates/`, not in the shipped files.
 
 ---
 
@@ -16,11 +18,11 @@ Templates live in `{farm}/templates/`. Example templates ship in `{farm}/templat
 ```json
 {
     "_version": 1,
-    "template_id": "blender-5.0",
-    "name": "Blender 5.0",
+    "template_id": "blender-5.3-mine",
+    "name": "Blender 5.3 (mine)",
 
     "cmd": {
-        "windows": "C:/Program Files/Blender Foundation/Blender 5.0/blender.exe",
+        "windows": "C:/Program Files/Blender Foundation/Blender 5.3/blender.exe",
         "linux": "/usr/bin/blender",
         "macos": "/Applications/Blender.app/Contents/MacOS/Blender",
         "label": "Blender Executable",
@@ -62,26 +64,26 @@ blender.exe -b scene.blend -o //output/path -s 1 -e 10 -a
 |---|---|---|
 | `_version` | `int` | Always `1`. Reserved for future schema changes. |
 | `template_id` | `string` | Unique identifier. Used to match user templates against examples. |
-| `name` | `string` | Display name shown in the submission UI. |
+| `name` | `string` | Display name shown in the New Job form. |
 | `cmd` | object | Executable paths per OS (see below). |
 | `flags` | array | Ordered list of command-line arguments (see below). |
 | `frame_padding` | `string` | Frame number format used in `default_pattern` tokens. e.g. `"####"` (Blender), `"[####]"` (After Effects). |
 | `job_defaults` | object | Pre-fills the submission form (see below). |
-| `progress` | object | Regex patterns for parsing DCC stdout (see below). |
+| `progress` | object | Regex patterns for parsing the renderer's output (see below). |
 | `output_detection` | object | How to find rendered file paths in stdout (see below). |
 | `process` | object | Process control settings (see below). |
-| `environment` | `object` | Extra environment variables passed to the DCC process. Key-value string pairs. |
+| `environment` | `object` | Extra environment variables passed to the renderer. Key-value string pairs. |
 | `tags_required` | `string[]` | Nodes must have ALL of these tags to be eligible for this template's jobs. |
 
 ---
 
 ## `cmd` — executable
 
-Defines the DCC executable path for each operating system.
+Defines the renderer's executable path for each operating system.
 
 ```json
 "cmd": {
-    "windows": "C:/Program Files/Blender Foundation/Blender 5.0/blender.exe",
+    "windows": "C:/Program Files/Blender Foundation/Blender 5.3/blender.exe",
     "linux": "/usr/bin/blender",
     "macos": "/Applications/Blender.app/Contents/MacOS/Blender",
     "label": "Blender Executable",
@@ -94,8 +96,8 @@ Defines the DCC executable path for each operating system.
 | `windows` | `string` | Path on Windows. |
 | `linux` | `string` | Path on Linux. |
 | `macos` | `string` | Path on macOS. |
-| `label` | `string` | Label shown in the submission UI. |
-| `editable` | `bool` | If `true`, the user can change the path at submission time. |
+| `label` | `string` | A label for the path. |
+| `editable` | `bool` | Reserved. The New Job form has no field for the executable: the template's path for each system is used. To use another path, copy the template and change it. |
 
 At least one OS path must be non-empty. Leave unsupported platforms as `""`.
 
@@ -103,7 +105,7 @@ At least one OS path must be non-empty. Leave unsupported platforms as `""`.
 
 ## `flags[]` — command-line arguments
 
-The flags array is the core of the template. It's an ordered list that defines every argument passed to the DCC. MinRender reads it top to bottom and builds the command line in order.
+The flags array is the core of the template. It's an ordered list that defines every argument passed to the renderer. minRender reads it top to bottom and builds the command line in order.
 
 ### How flags map to arguments
 
@@ -124,17 +126,17 @@ The common pattern is a **flag/value pair** across two entries: a non-editable f
 |---|---|---|---|
 | `flag` | `string` | | The flag name (e.g. `"-b"`, `"-o"`). Empty string `""` for positional arguments. |
 | `value` | `string?` | `null` | The value. `null` = no value (standalone flag). `""` = user fills in. Any string = fixed or runtime token. |
-| `info` | `string` | `""` | Label shown in the submission UI. |
-| `editable` | `bool` | `false` | Whether the user can modify this value at submission time. |
-| `required` | `bool` | `false` | If `true` and `editable`, submission fails when left empty. |
+| `info` | `string` | `""` | Label shown in the New Job form. |
+| `editable` | `bool` | `false` | Whether the user can modify this value at submission time. Only flags that are `editable` or `required` show in the form. |
+| `required` | `bool` | `false` | If `true` and `editable`, submission is refused while it is empty. The field's label is amber. |
 | `type` | `string` | `""` | `"file"` = shows a file picker. `"output"` = output path (used for output directory tracking and local staging). `""` = plain text input. |
 | `filter` | `string` | `""` | File extension filter for the file picker (e.g. `"blend"`, `"c4d"`, `"aep"`). Only relevant when `type` is `"file"`. |
 | `id` | `string` | `""` | Identifier for cross-referencing. Other flags' `default_pattern` can reference this value via `{flag:id}`. |
-| `default_pattern` | `string?` | `null` | Auto-resolve pattern for the value. Evaluated at submission time (see Pattern tokens below). |
+| `default_pattern` | `string?` | `null` | A pattern for the value (see Pattern tokens below). **Not applied by the New Job form in 1.0** — the field starts with `value`; the key is kept for a later version. |
 
 ### Skipping empty optional flags
 
-If a non-required editable positional value is left empty by the user, both it **and** its preceding standalone flag are omitted from the final command line. This lets templates include optional flags (like `-take` in Cinema 4D) that disappear cleanly when unused.
+If a non-required editable positional value is left empty by the user, both it **and** its preceding standalone flag are omitted from the final command line. This lets templates include optional flags (like `-take` in the Cinema 4D example below) that disappear cleanly when unused.
 
 ### Runtime tokens
 
@@ -148,7 +150,7 @@ These tokens in flag values are replaced at dispatch time with the actual frame 
 
 ### Pattern tokens (for `default_pattern`)
 
-These are resolved once at submission time to auto-fill output paths:
+The tokens a `default_pattern` may use. The New Job form in 1.0 does not fill a field from its pattern yet; the Blender add-on takes the output path from the scene instead.
 
 | Token | Source |
 |---|---|
@@ -173,7 +175,7 @@ D:\projects\renders\shot01\shot01_####
 
 ## `job_defaults` — submission defaults
 
-Pre-fills the submission form. Users can override all of these.
+Pre-fills the New Job form. The range, chunk size and priority can be changed there; `max_retries` and `timeout_seconds` are taken as they are and can be changed afterwards with **Edit**.
 
 ```json
 "job_defaults": {
@@ -199,7 +201,7 @@ Pre-fills the submission form. Users can override all of these.
 
 ## `progress` — stdout parsing
 
-Tells MinRender how to extract progress information from the DCC's stdout output.
+Tells minRender what to read in the renderer's output. **A chunk succeeds or fails by the renderer's exit code alone**; these patterns only feed the progress display.
 
 ```json
 "progress": {
@@ -224,7 +226,7 @@ Tells MinRender how to extract progress information from the DCC's stdout output
 
 ### `patterns[]` — progress tracking
 
-Each pattern extracts a progress value from a stdout line.
+Each pattern extracts a progress value from a line of output. minRender 1.0 keeps these with the job but does not show progress inside a frame; progress within a chunk comes from `completion_pattern`, frame by frame.
 
 | Field | Type | Description |
 |---|---|---|
@@ -241,13 +243,13 @@ Optional. When matched, signals that a frame has finished rendering. Used for pe
 
 ### `error_patterns[]` — error detection
 
-When matched, the chunk is marked as failed immediately. Each entry has `regex` and `info`.
+Each entry has `regex` and `info`. They are kept with the job and **not acted on** — as in 0.5, whose manual said otherwise. A renderer that prints an error and still exits with code 0 counts as a success; Blender's `--python-exit-code 1` in the shipped templates is there for that reason.
 
 ---
 
 ## `output_detection` — rendered file detection
 
-How MinRender finds the path of rendered output files. Used for validation (checking that the file exists and is non-zero after rendering).
+Describes where the renderer names the files it wrote. It is kept with the job; **1.0 does not validate output files** (`exists_nonzero` is not acted on — as in 0.5). The preview finds frames by the job's output path instead.
 
 ```json
 "output_detection": {
@@ -262,7 +264,7 @@ How MinRender finds the path of rendered output files. Used for validation (chec
 |---|---|---|---|
 | `stdout_regex` | `string?` | `null` | Regex to extract the output file path from stdout. `null` = no stdout detection. |
 | `path_group` | `int` | `1` | Capture group containing the file path. |
-| `validation` | `string` | `"exit_code_only"` | `"exists_nonzero"` = check that the file exists and is > 0 bytes. `"exit_code_only"` = trust the exit code. |
+| `validation` | `string` | `"exit_code_only"` | `"exit_code_only"` = trust the exit code — the only behaviour today. `"exists_nonzero"` is accepted and not acted on. |
 | `info` | `string` | `""` | Description. |
 
 ---
@@ -279,7 +281,7 @@ How MinRender finds the path of rendered output files. Used for validation (chec
 |---|---|---|---|
 | `working_dir` | `string?` | `null` | Working directory for the process. `null` = inherit. Supports runtime tokens (`{chunk_start}`, etc.). |
 
-On cancel or timeout, MinRender always kills the renderer's entire process
+On cancel, stop, exit or timeout, minRender always kills the renderer's entire process
 tree immediately (Job Object on Windows, process group on macOS) — this is
 not configurable. A `kill_method` field from older templates is ignored.
 
@@ -307,7 +309,9 @@ not configurable. A `kill_method` field from older templates is ignored.
 
 Produces: `blender -b scene.blend -o /renders/shot/shot_#### -F OPEN_EXR_MULTILAYER -s 1 -e 10 -a`
 
-### Cinema 4D (with optional flags)
+### Another renderer, with optional flags (Cinema 4D)
+
+minRender 1.0 ships no Cinema 4D template; this shows how optional flags are written.
 
 ```json
 "flags": [
