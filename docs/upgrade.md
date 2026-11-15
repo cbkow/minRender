@@ -1,5 +1,6 @@
 ---
 title: Upgrading from 0.5
+permalink: /upgrade/
 nav_order: 8
 ---
 
