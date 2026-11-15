@@ -1,4 +1,4 @@
-title: MinRender
+title: minRender
 description: Docs and manual
 remote_theme: just-the-docs/just-the-docs
 
@@ -13,3 +13,5 @@ enable_dark_mode: true
 just_the_docs:
   custom_css:
     - custom/custom.scss
+
+footer_content: 'Copyright &copy; 2025&ndash;2026 cbkow. minRender is free software under the <a href="https://github.com/cbkow/MinRender/blob/main/LICENSE">GNU General Public License, version 3 or later</a>; its source is in <a href="https://github.com/cbkow/minplatform">cbkow/minplatform</a>. Blender is a trademark of the Blender Foundation; After Effects of Adobe Inc.; Cinema 4D of Maxon Computer GmbH.'
