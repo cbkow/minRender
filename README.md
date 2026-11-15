@@ -2,7 +2,7 @@
 
 A lightweight render farm coordinator for small VFX teams and freelancers.
 
-![minRender](docs/images/mr001.jpg)
+![minRender](docs/images/mr1-window.png)
 
 - **Self-healing mesh** — every node can act as coordinator. If the leader drops, another takes over automatically.
 - **Blender, out of the box** — a submission add-on for Blender and the templates it uses ship with the application. JSON templates define how to launch any command-line renderer.

@@ -7,7 +7,7 @@ nav_order: 5
 
 Click any job in the **Jobs** list to load it into the **Job Detail** tab below. Progress and the frame grid update live from the leader as chunks come back from the nodes. The gaps between the panels can be dragged; the sizes are kept.
 
-![minRender](/images/mr1-detail.png)
+![minRender](/images/mr1-window.png)
 
 ## Job order & priority
 
@@ -33,6 +33,8 @@ Shift-click and Cmd/Ctrl-click select several jobs; the arrow keys move through 
 | **Apply to next chunks** | Chunks already rendering finish with the old settings; every chunk dispatched from now on uses the new ones. |
 | **Stop chunks & apply** | Rendering chunks are killed and requeued with the new settings. Completed chunks keep their output. Asks first. |
 | **Start over** | Discards all progress; every chunk renders again with the new settings. Asks first. Required when the frame range or chunk size changed. |
+
+![Edit Job](/images/mr1-edit.png)
 
 ## The job detail
 
@@ -62,6 +64,8 @@ Under the grid, one row per chunk: its state, frames, the node rendering it, pro
 
 The **Preview** pane (bottom left) shows the latest frame the job has written. Clicking a frame or a chunk holds the preview there for a minute; **Latest** lets go. For EXR files **Layers** opens the file's layers as small pictures — pick one to preview that layer.
 
+![EXR layers](/images/mr1-layers.png)
+
 ## Nodes
 
 The left panel shows this node (with **Stop** / **Resume**: Stop ends a render on this node at once and takes no new work) and the **Peers**. Right-click a peer to **Stop**, **Start** or **Restart** it, or to **Show log**.
@@ -76,8 +80,12 @@ The **Logs** tab has three sources:
 - **Peer…** — the log of another node, picked from the list.
 - **Task Output** — the renderer's own output for the selected job. Pick a chunk on the left, read its output on the right.
 
+![Logs](/images/mr1-logs.png)
+
 These logs are also files in the sync root (under `MinRender-v2/nodes/<node>/` and `MinRender-v2/jobs/<job>/`), so you can open them in a text editor.
 
 ## Farm Cleanup
 
 **Farm Cleanup** (top right) lists what can be cleared, in six sections with a checkbox per item: finished jobs (archive them), archived jobs (delete them), job folders no job owns, peers that have gone for good, and leftover staging folders on this machine. Nothing here asks twice.
+
+![Farm Cleanup](/images/mr1-cleanup.png)
