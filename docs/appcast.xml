@@ -8,6 +8,35 @@
     <language>en</language>
     <!-- @@APPCAST_INSERT@@ -->
     <item>
+      <title>Version 1.0.1</title>
+      <link>https://minrender.com/</link>
+      <sparkle:version>1.0.1</sparkle:version>
+      <sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<p><b>minRender 1.0 is the same farm, rebuilt from the ground up.</b> It works in one farm with 0.5.10 and 0.5.11
+nodes, so machines can be upgraded one at a time; a node keeps its settings and its identity.</p>
+<ul>
+  <li><b>Edit a running job</b>, submit part of a job as a separate job, and <b>Farm Cleanup</b>.</li>
+  <li><b>EXR layers</b> in the frame preview; priority, Open output and a log picker in reach.</li>
+  <li><b>No farm is not the end</b> &mdash; a node that starts before its shared folder is reachable waits for it and
+      joins by itself.</li>
+  <li><b>Safer on synced folders</b> (Dropbox, Synology Drive, LucidLink and the like) as the farm's shared folder.</li>
+  <li><b>Blender 5.3</b> templates and add-on.</li>
+  <li>After Effects and Cinema 4D templates and plug-ins are no longer included; they remain in the 0.5.x source.</li>
+</ul>
+<p><b>Action needed</b> &mdash; install the Blender add-on again on each workstation, from the shared folder's
+<code>plugins/blender</code>. macOS 13 or later is required. Read
+<a href="https://minrender.com/upgrade/">Upgrading from 0.5</a> first.</p>
+      ]]></description>
+      <pubDate>Sun, 15 Nov 2026 15:13:29 -0500</pubDate>
+      <enclosure
+        url="https://github.com/cbkow/MinRender/releases/download/v1.0.1/minRender-1.0.1-macOS.dmg"
+        sparkle:edSignature="1K0buPBstysPd5nE7hO4jjRQTaKd68W9aLJf9KHNQl2ip1lfv0Lp3b8dJC8Qk3UDQ6ovw2phhkcw1w6xw+HZDA=="
+        length="10420222"
+        type="application/octet-stream" />
+    </item>
+    <item>
       <title>Version 0.5.11</title>
       <link>https://minrender.com/</link>
       <sparkle:version>0.5.11</sparkle:version>
