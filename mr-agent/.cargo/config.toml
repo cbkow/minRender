@@ -1,4 +1,0 @@
-# Intentionally no linker override. A hardcoded link.exe path here (removed
-# 2026-07-29) pointed at an uninstalled VS preview and broke every build once
-# that VS was gone. rustc locates MSVC itself; build from a VS x64 dev prompt
-# (or any shell where vcvarsall has run) if auto-detection ever misfires.
