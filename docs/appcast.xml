@@ -8,6 +8,28 @@
     <language>en</language>
     <!-- @@APPCAST_INSERT@@ -->
     <item>
+      <title>Version 1.0.3</title>
+      <link>https://minrender.com/</link>
+      <sparkle:version>1.0.3</sparkle:version>
+      <sparkle:shortVersionString>1.0.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+<p><b>minRender 1.0.3</b></p>
+<ul>
+  <li><b>A node restarted during a render comes back.</b> Restart App in a peer's menu, Save in Settings and Exit,
+      used while the node was rendering, took the node off the farm but let the render run to the end of its chunk;
+      after a restart the node then did not come back. The render is now ended at once and the node starts again.</li>
+  <li><b>Windows: the window is no longer dim on an HDR screen.</b> It follows the screen's SDR brightness.</li>
+</ul>
+      ]]></description>
+      <pubDate>Fri, 27 Nov 2026 10:09:11 -0500</pubDate>
+      <enclosure
+        url="https://github.com/cbkow/MinRender/releases/download/v1.0.3/minRender-1.0.3-macOS.dmg"
+        sparkle:edSignature="0UQeu1LB8lRM47RKXNHW2Qe5LE4t239lZucI/uGA9o0/gy+nJR5m7c0Ej/XSrn9aQEUc7rV1AvsX7Pdl+jKmDw=="
+        length="10438350"
+        type="application/octet-stream" />
+    </item>
+    <item>
       <title>Version 1.0.2</title>
       <link>https://minrender.com/</link>
       <sparkle:version>1.0.2</sparkle:version>
